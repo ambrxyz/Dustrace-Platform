@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DustTrace — Advanced AQI Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#050505; --bg2:#0b0b0c; --panel:rgba(255,255,255,.075); --panel2:rgba(255,255,255,.115);
+  --stroke:rgba(255,255,255,.135); --stroke2:rgba(255,255,255,.23); --text:#f8f3ed; --muted:#a9a197; --faint:#706a61;
+  --rust:#c86a3b; --rust2:#f3a36f; --gold:#f2ce63; --good:#70e2a0; --blue:#8bb7ff; --bad:#ff6d6d; --haz:#d7a4ff;
+  --shadow:0 30px 110px rgba(0,0,0,.64); --blur:blur(28px) saturate(1.35); --radius:30px; --radius2:20px;
+  --sans:'Inter',system-ui,-apple-system,Segoe UI,sans-serif; --mono:'JetBrains Mono',monospace; --serif:'Playfair Display',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0} html{scroll-behavior:smooth} body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body:before{content:"";position:fixed;inset:0;z-index:-3;background:radial-gradient(circle at 7% 6%,rgba(255,255,255,.12),transparent 22%),radial-gradient(circle at 88% 8%,rgba(200,106,59,.19),transparent 28%),radial-gradient(circle at 52% 100%,rgba(255,255,255,.08),transparent 35%),linear-gradient(135deg,#010101,#0e0e10 60%,#020202)}
+body:after{content:"";position:fixed;inset:0;z-index:-2;opacity:.19;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 280 280' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.48'/%3E%3C/svg%3E")}
+a{color:inherit;text-decoration:none}button,input,select{font-family:inherit}.glass{background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.038));border:1px solid var(--stroke);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--shadow)}
+.app{width:min(1500px,100%);margin:0 auto}.mono{font-family:var(--mono)}.muted{color:var(--muted)}
+header{position:sticky;top:0;z-index:60;padding:18px 24px}.nav{height:74px;border-radius:999px;display:flex;align-items:center;justify-content:space-between;padding:0 18px 0 14px}.brand{display:flex;align-items:center;gap:13px;min-width:280px}.brand-mark{width:52px;height:52px;border-radius:18px;background:radial-gradient(circle at 68% 28%,rgba(243,163,111,.42),transparent 24%),linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.22);display:grid;place-items:center;position:relative;overflow:hidden;box-shadow:0 18px 45px rgba(0,0,0,.34)}.brand-mark:before{content:'';position:absolute;width:34px;height:34px;border:2px solid rgba(248,243,237,.9);border-left-color:rgba(248,243,237,.25);border-bottom-color:rgba(200,106,59,.7);border-radius:50%;transform:rotate(-20deg)}.brand-mark:after{content:'';position:absolute;width:36px;height:11px;border-top:3px solid rgba(243,163,111,.82);border-radius:50%;bottom:13px;right:7px;transform:rotate(-12deg);box-shadow:-14px -14px 0 -9px rgba(255,255,255,.85),-22px -22px 0 -11px rgba(243,163,111,.75)}.brand-letter{position:relative;z-index:1;font-size:20px;font-weight:950;letter-spacing:-.1em}.brand h1{font-size:18px;letter-spacing:-.05em}.brand span{display:block;color:var(--muted);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;margin-top:2px}.navtabs{display:flex;gap:6px;align-items:center}.navtab{border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:850;padding:11px 14px;border-radius:999px;cursor:pointer;transition:.2s}.navtab:hover,.navtab.active{background:rgba(255,255,255,.10);color:var(--text)}.live{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;color:var(--muted);padding:11px 14px;border:1px solid var(--stroke);border-radius:999px}.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 18px var(--good);animation:pulse 1.9s infinite}@keyframes pulse{50%{opacity:.45;transform:scale(.75)}}
+.page{display:none;padding:34px 24px 78px;animation:show .35s ease}.page.active{display:block}@keyframes show{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:18px 0 22px}.page-head h2{font-size:clamp(34px,5vw,66px);line-height:.92;letter-spacing:-.08em;font-weight:930}.page-head h2 em{font-family:var(--serif);font-weight:600}.page-head p{color:var(--muted);max-width:650px;line-height:1.75;font-size:15px}.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px;margin-bottom:18px}.kicker:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--rust);box-shadow:0 0 18px var(--rust)}
+.hero{display:grid;grid-template-columns:1.08fr .92fr;gap:24px;align-items:stretch}.hero-main{border-radius:42px;padding:56px;min-height:590px;position:relative;overflow:hidden}.hero-main:after{content:"";position:absolute;inset:auto -10% -45% -10%;height:65%;background:radial-gradient(ellipse at center,rgba(198,106,59,.18),transparent 70%)}.hero h2{font-size:clamp(50px,7vw,104px);line-height:.91;letter-spacing:-.09em;font-weight:930;position:relative;z-index:1}.hero h2 em{font-family:var(--serif);font-weight:600}.hero p{font-size:17px;color:var(--muted);line-height:1.8;max-width:760px;margin:26px 0 36px;position:relative;z-index:1}.cta{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:1}.btn{border:0;border-radius:999px;padding:15px 22px;font-weight:900;font-size:13px;cursor:pointer;transition:.25s}.btn.primary{background:var(--text);color:#050505}.btn.primary:hover{transform:translateY(-2px)}.btn.ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--stroke)}.hero-side{display:grid;grid-template-rows:auto 1fr;gap:24px}.aqi-panel,.brief{border-radius:42px;padding:28px;position:relative;overflow:hidden}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:22px}.label{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}.city{font-weight:900;font-size:26px;letter-spacing:-.05em;margin-top:6px}.risk-pill,.badge{font-family:var(--mono);font-size:11px;font-weight:850;border:1px solid rgba(255,109,109,.35);color:#ffd0d0;background:rgba(255,109,109,.10);border-radius:999px;padding:8px 10px;display:inline-flex}.aqi-big{font-size:126px;line-height:.8;font-weight:930;letter-spacing:-.1em}.aqi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:26px}.mini,.kpi,.item,.route-card,.report-card,.analytics-card{border-radius:20px;background:rgba(255,255,255,.055);border:1px solid var(--stroke);padding:16px}.mini b{display:block;font-size:19px}.mini span,.kpi small{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}.brief h3{font-size:31px;letter-spacing:-.06em;margin:10px 0}.brief p{color:var(--muted);line-height:1.75;font-size:14px}.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.tag{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--stroke);padding:8px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.09em}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}.stat{border-radius:26px;padding:22px}.stat strong{display:block;font-size:35px;letter-spacing:-.06em}.stat span{color:var(--muted);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.11em}
+.analytics-grid{display:grid;grid-template-columns:1.4fr .6fr;gap:18px}.panel{border-radius:30px;padding:22px}.panel h3{font-size:21px;letter-spacing:-.04em;margin-bottom:14px}.wide{grid-column:span 2}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi b{display:block;font-size:32px;letter-spacing:-.06em;margin-top:8px}.kpi em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--good)}.line-card{min-height:365px}.svg-chart{width:100%;height:280px;overflow:visible}.axis{stroke:rgba(255,255,255,.08);stroke-width:1}.line-red{fill:none;stroke:var(--bad);stroke-width:3.5;filter:drop-shadow(0 0 12px rgba(255,109,109,.25))}.line-orange{fill:none;stroke:var(--rust2);stroke-width:3}.line-green{fill:none;stroke:var(--good);stroke-width:3}.safe-line{stroke:rgba(255,255,255,.30);stroke-dasharray:6 8;stroke-width:1.4}.area-red{fill:url(#redArea);opacity:.72}.chart-legend{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin:4px 0 12px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px}.score-list{display:flex;flex-direction:column;gap:14px}.score-row{display:grid;grid-template-columns:34px 58px 1fr;gap:10px;align-items:center}.score-row small{color:var(--muted);font-family:var(--mono);font-size:11px}.score-bar{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}.score-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--rust2),var(--bad));width:var(--w)}.weather-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.weather-box b{font-size:30px;display:block}.weather-box small{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase}.gauge-row{display:flex;align-items:center;justify-content:space-around;gap:20px;min-height:180px}.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--bad) var(--p), rgba(255,255,255,.08) 0);position:relative}.gauge:after{content:"";position:absolute;inset:13px;border-radius:50%;background:rgba(5,5,5,.82);border:1px solid var(--stroke)}.gauge b{position:relative;z-index:1}.gauge small{position:relative;z-index:1;margin-top:30px;color:var(--muted)}.event-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow:auto;padding-right:5px}.event{display:grid;grid-template-columns:54px 1fr 58px;gap:12px;align-items:center;border-radius:16px;padding:12px;background:rgba(255,255,255,.05);border:1px solid var(--stroke)}.event time{font-family:var(--mono);font-size:11px;color:var(--muted)}.event .mini-bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}.event .mini-bar i{display:block;height:100%;width:var(--w);background:linear-gradient(90deg,var(--rust2),var(--bad));border-radius:999px}.event b{font-family:var(--mono);font-size:12px;color:var(--rust2)}.rec-tabs{display:flex;gap:8px;border-bottom:1px solid var(--stroke);margin-bottom:14px}.rec-tab{padding:10px 14px;border-radius:14px 14px 0 0;color:var(--muted);background:transparent;border:0;font-weight:800;cursor:pointer}.rec-tab.active{background:rgba(255,255,255,.08);color:var(--text)}.recommendation{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px;border-radius:18px;border:1px solid var(--stroke);background:rgba(255,255,255,.05);margin-top:10px}.priority{font-family:var(--mono);font-size:10px;padding:7px 9px;border-radius:999px;background:rgba(255,109,109,.12);color:#ffd0d0;border:1px solid rgba(255,109,109,.25)}.chip{font-family:var(--mono);font-size:10px;border:1px solid var(--stroke);padding:7px 9px;border-radius:999px;color:var(--muted)}.ai-insight{border-left:3px solid var(--rust);padding-left:14px;color:var(--muted);line-height:1.75;margin:12px 0}.ai-insight b{color:var(--text)}
+#live-map{width:100%;height:100%;border-radius:30px}.map-shell{height:660px;border-radius:34px;position:relative;overflow:hidden}.map-status{position:absolute;top:18px;left:18px;z-index:500;border-radius:999px;padding:10px 14px;display:flex;gap:10px;align-items:center;color:var(--muted);font-family:var(--mono);font-size:11px}.map-panel{position:absolute;right:18px;top:18px;z-index:500;width:min(360px,calc(100% - 36px));border-radius:28px;padding:22px}.map-panel h3{font-size:34px;margin:8px 0;letter-spacing:-.06em}.legend{position:absolute;left:18px;bottom:18px;z-index:500;width:230px;border-radius:26px;padding:18px}.legend-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--stroke);font-family:var(--mono);font-size:11px;color:var(--muted)}.legend-row:last-child{border:0}.sw{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}.good{background:var(--good)}.mod{background:var(--gold)}.bad{background:var(--bad)}.leaflet-container{background:#050505}.leaflet-control-zoom a{background:rgba(10,10,10,.9)!important;color:#fff!important;border-color:rgba(255,255,255,.15)!important}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#111!important;color:#fff!important;border:1px solid rgba(255,255,255,.18)!important;box-shadow:0 20px 50px rgba(0,0,0,.45)!important}.leaflet-popup-content{font-family:var(--sans);line-height:1.55}
+.route-layout{display:grid;gap:18px}.form{display:grid;grid-template-columns:1fr 1fr auto;gap:12px}.field{border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);border-radius:999px;padding:15px 18px;outline:none}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.route-card{border-radius:30px;padding:26px}.route-card h4{font-size:24px;margin-bottom:10px}.route-card p{color:var(--muted);line-height:1.7}.route-line{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--bad),var(--rust2));margin:24px 0}.route-line.safe{background:linear-gradient(90deg,var(--good),var(--gold))}.report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.report-card{border-radius:30px;padding:26px}.report-card h4{font-size:22px;margin-bottom:10px}.report-card p{color:var(--muted);line-height:1.75;margin-bottom:16px}.mobilebar{display:none;position:fixed;bottom:14px;left:14px;right:14px;z-index:58;border-radius:999px;padding:8px;justify-content:space-around}
+.chat-launch{position:fixed;right:24px;bottom:24px;z-index:80;width:62px;height:62px;border-radius:22px;border:1px solid var(--stroke2);background:linear-gradient(145deg,rgba(255,255,255,.18),rgba(200,106,59,.18));color:var(--text);box-shadow:var(--shadow);font-size:25px;cursor:pointer}.chatbox{position:fixed;right:24px;bottom:96px;width:min(420px,calc(100vw - 32px));height:600px;max-height:calc(100vh - 130px);z-index:79;border-radius:30px;display:none;overflow:hidden}.chatbox.open{display:flex;flex-direction:column}.chat-head{padding:18px 18px 14px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between;align-items:center}.chat-head h3{font-size:17px}.chat-head span{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase}.chat-close{border:1px solid var(--stroke);background:rgba(255,255,255,.05);color:var(--muted);width:34px;height:34px;border-radius:50%;cursor:pointer}.chat-messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}.msg{max-width:88%;padding:12px 14px;border-radius:18px;font-size:13px;line-height:1.6}.msg.bot{align-self:flex-start;background:rgba(255,255,255,.075);border:1px solid var(--stroke);border-bottom-left-radius:6px}.msg.user{align-self:flex-end;background:var(--text);color:#070707;border-bottom-right-radius:6px}.quick{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 10px}.quick button{border:1px solid var(--stroke);background:rgba(255,255,255,.05);color:var(--muted);padding:8px 10px;border-radius:999px;font-size:11px;cursor:pointer}.chat-input{display:flex;gap:8px;padding:14px;border-top:1px solid var(--stroke)}.chat-input input{flex:1;border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);border-radius:999px;padding:13px 15px;outline:none}.chat-input button{border:0;background:var(--text);color:#050505;border-radius:999px;padding:0 16px;font-weight:900;cursor:pointer}
+@media(max-width:980px){header{padding:12px}.navtabs{display:none}.live{display:none}.brand{min-width:0}.page{padding:18px 12px 90px}.hero,.analytics-grid,.grid-2{grid-template-columns:1fr}.wide{grid-column:span 1}.hero-main{padding:34px;min-height:520px}.stats,.kpis,.report-grid{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}.map-shell{height:560px}.map-panel{position:absolute;top:auto;bottom:120px;left:18px;right:18px;width:auto}.mobilebar{display:flex}.chat-launch{bottom:90px;right:16px}.chatbox{bottom:160px;right:16px}}@media(max-width:560px){.page-head{display:block}.page-head h2{font-size:42px;margin-bottom:14px}.hero h2{font-size:52px}.hero-main{padding:28px;border-radius:30px}.aqi-big{font-size:92px}.aqi-row,.stats,.kpis,.report-grid,.weather-grid{grid-template-columns:1fr}.nav{height:66px}.brand h1{font-size:16px}.brand span{display:none}.map-shell{height:520px}.legend{display:none}.event{grid-template-columns:45px 1fr 45px}.recommendation{grid-template-columns:1fr}.chatbox{height:540px}}
+
+/* Minimal requested theme toggle: keeps original UI, only swaps colors safely */
+.theme-toggle{border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);border-radius:999px;padding:11px 14px;font-weight:850;font-size:12px;cursor:pointer;transition:.2s;white-space:nowrap}
+.theme-toggle:hover{background:rgba(255,255,255,.12)}
+body.light{--bg:#f5f2ec;--bg2:#ffffff;--panel:rgba(255,255,255,.78);--panel2:rgba(255,255,255,.92);--stroke:rgba(20,20,20,.13);--stroke2:rgba(20,20,20,.22);--text:#171412;--muted:#6f6860;--faint:#938a80;--shadow:0 24px 80px rgba(50,40,30,.13);}
+body.light:before{background:radial-gradient(circle at 7% 6%,rgba(200,106,59,.10),transparent 24%),radial-gradient(circle at 88% 8%,rgba(0,0,0,.055),transparent 28%),linear-gradient(135deg,#fbfaf6,#eee8df 62%,#faf8f2)}
+body.light:after{opacity:.08}
+body.light .glass{background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(255,255,255,.58));border-color:rgba(20,20,20,.12);box-shadow:0 24px 80px rgba(50,40,30,.13)}
+body.light .btn.primary{background:#171412;color:#fff}
+body.light .btn.ghost,body.light .theme-toggle{background:rgba(255,255,255,.74);color:#171412;border-color:rgba(20,20,20,.14)}
+body.light .navtab:hover,body.light .navtab.active{background:rgba(0,0,0,.06);color:#171412}
+body.light .mini,body.light .kpi,body.light .item,body.light .route-card,body.light .report-card,body.light .analytics-card{background:rgba(255,255,255,.66);border-color:rgba(20,20,20,.10)}
+body.light .map-shell{background:#f7f4ed}
+body.light .map-status,body.light .map-panel,body.light .legend{background:rgba(255,255,255,.82);color:#171412;border-color:rgba(20,20,20,.13)}
+body.light .leaflet-container{background:#f7f4ed!important}
+body.light .leaflet-control-zoom a{background:#fff!important;color:#171412!important;border-color:rgba(20,20,20,.15)!important}
+body.light .leaflet-popup-content-wrapper,body.light .leaflet-popup-tip{background:#fff!important;color:#171412!important;border:1px solid rgba(20,20,20,.13)!important;box-shadow:0 18px 45px rgba(50,40,30,.18)!important}
+body.light .chatbox,body.light .chat-launch{background:rgba(255,255,255,.86);color:#171412;border-color:rgba(20,20,20,.13)}
+@media(max-width:980px){.theme-toggle{padding:10px 12px;font-size:11px}.nav{gap:8px}.brand{flex:1}.brand-mark{width:46px;height:46px}.mobilebar{overflow-x:auto;justify-content:flex-start}.mobilebar .theme-toggle{margin-left:6px}}
+@media(max-width:560px){header{padding:10px 10px}.nav{height:auto;min-height:64px;padding:8px 10px}.brand h1{font-size:15px}.theme-toggle{padding:9px 10px}.map-panel{bottom:105px!important}.chatbox{width:calc(100vw - 24px);right:12px;bottom:145px}.chat-launch{right:12px}}
+
+
+/* FINAL FIX: mobile map panel no longer blocks the map */
+.forecast-list{display:flex;flex-direction:column;gap:12px}
+.forecast-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;border:1px solid var(--stroke);background:rgba(255,255,255,.055);border-radius:18px;padding:14px 16px}
+.forecast-row b{font-size:15px}
+.forecast-row small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:4px}
+.forecast-row strong{font-family:var(--mono);color:var(--rust2);font-size:18px}
+.forecast-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.forecast-actions button{border:1px solid var(--stroke);background:rgba(255,255,255,.05);color:var(--text);border-radius:999px;padding:10px 12px;font-weight:800;font-size:12px;cursor:pointer}
+.forecast-actions button:hover{border-color:rgba(243,163,111,.55)}
+@media(max-width:560px){
+  #page-map .map-shell{height:auto!important;overflow:visible!important;border-radius:0!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
+  #page-map #live-map{height:430px!important;border-radius:28px!important;border:1px solid var(--stroke);overflow:hidden;box-shadow:var(--shadow)}
+  #page-map .map-status{top:12px!important;left:12px!important;font-size:10px!important;padding:8px 10px!important}
+  #page-map .map-panel{position:relative!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;width:100%!important;margin-top:12px!important;border-radius:24px!important;padding:18px!important}
+  #page-map .legend{position:relative!important;left:auto!important;bottom:auto!important;width:100%!important;margin-top:12px!important;border-radius:22px!important}
+  #page-map .chat-launch{bottom:82px!important}
+  .chatbox.open{z-index:999!important}
+  .forecast-row{padding:13px 14px}
+}
+
+
+/* Reports evidence upgrade */
+.report-hero{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.evidence-tile{display:flex;align-items:center;gap:18px;border-radius:30px;padding:24px}
+.evidence-icon{width:54px;height:54px;border-radius:18px;display:grid;place-items:center;background:rgba(198,106,59,.12);border:1px solid var(--stroke);font-size:24px;flex:0 0 auto}
+.evidence-tile h4{font-size:20px;margin-bottom:6px}.evidence-tile p{color:var(--muted);line-height:1.55}.evidence-tile .btn{margin-left:auto;white-space:nowrap}
+.report-tabs{display:flex;gap:10px;border-bottom:1px solid var(--stroke);margin:26px 0 16px;overflow:auto;padding-bottom:0}
+.report-tab{padding:12px 18px;border-radius:16px 16px 0 0;background:transparent;color:var(--muted);border:1px solid transparent;font-weight:900;cursor:pointer;white-space:nowrap}
+.report-tab.active{color:var(--text);background:rgba(255,255,255,.08);border-color:var(--stroke);border-bottom-color:transparent}
+.report-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.report-action{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;border-radius:20px;padding:16px 18px;background:rgba(255,255,255,.055);border:1px solid var(--stroke)}
+.report-action b{display:block;margin-bottom:3px}.report-action small{color:var(--muted);line-height:1.5}.report-zone{font-family:var(--mono);font-size:10px;color:var(--muted);padding:7px 10px;border-radius:999px;border:1px solid var(--stroke);text-transform:uppercase}.report-status{font-family:var(--mono);font-size:10px;color:var(--text);padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--stroke);text-transform:uppercase}.report-sim{border-radius:30px;padding:26px;margin-top:18px}.sim-line{display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--muted);margin:14px 0}.sim-line input{width:78px;border-radius:14px;border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);padding:11px 12px;font-weight:900;text-align:center;outline:none}.sim-result{display:none;margin-top:16px;border-radius:18px;padding:16px;background:rgba(112,226,160,.08);border:1px solid rgba(112,226,160,.18);color:var(--text)}.sim-result.show{display:block}.report-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.report-metric{border-radius:20px;padding:16px;background:rgba(255,255,255,.055);border:1px solid var(--stroke)}.report-metric b{font-size:28px;display:block}.report-metric small{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+body.light .report-tab.active,body.light .report-action,body.light .report-metric,body.light .sim-line input{background:rgba(255,255,255,.66);border-color:rgba(20,20,20,.10)}
+@media(max-width:980px){.report-hero{grid-template-columns:1fr}.report-action{grid-template-columns:1fr}.report-metrics{grid-template-columns:1fr 1fr}.evidence-tile{align-items:flex-start}.evidence-tile .btn{margin-left:0}}
+@media(max-width:560px){.report-metrics{grid-template-columns:1fr}.evidence-tile{display:block}.evidence-icon{margin-bottom:14px}.report-tab{padding:10px 13px}.report-sim{padding:20px}.sim-line{display:block}.sim-line input{margin:8px 4px 8px 0}}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header><nav class="nav glass"><a class="brand" href="#" onclick="showPage('home')"><div class="brand-mark"><div class="brand-letter">D</div></div><div><h1>DustTrace</h1><span>Almaty AQI Intelligence</span></div></a><div class="navtabs"><button class="navtab active" data-page="home">Home</button><button class="navtab" data-page="analytics">Analytics</button><button class="navtab" data-page="map">Map</button><button class="navtab" data-page="routes">Routes</button><button class="navtab" data-page="reports">Reports</button></div><div class="live"><i class="dot"></i> Live backend connected</div><button class="theme-toggle" id="menuToggle" onclick="toggleMenu()">☰ Menu</button></nav></header>
+<main>
+<section class="page active" id="page-home"><div class="hero"><div class="hero-main glass"><div class="kicker">Hyperlocal AQI prediction</div><h2>Pollution visibility <em>where sensors do not exist.</em></h2><p>DustTrace is an AI-powered climate-tech dashboard for predicting pollution risk across unsensored urban zones. This final prototype has separate pages, advanced analytics, a real map layer, route intelligence, reports, and an embedded AI assistant.</p><div class="cta"><button class="btn primary" onclick="showPage('analytics')">Open analytics →</button><button class="btn ghost" onclick="showPage('map')">View live map</button><button class="btn ghost" onclick="toggleChat(true)">Ask DustTrace AI</button><button class="btn ghost" onclick="loadLiveDustTraceData();loadLiveForecast();loadLiveHeatmap();showToast('✓ Synced with backend APIs')">Sync Backend</button></div></div><aside class="hero-side"><div class="aqi-panel glass"><div class="panel-head"><div><div class="label">Current city AQI</div><div class="city">Almaty • University District</div></div><div class="risk-pill">Unhealthy</div></div><div class="aqi-big">178</div><div class="aqi-row"><div class="mini"><b>PM2.5</b><span>92 µg/m³</span></div><div class="mini"><b>Wind</b><span>Low • 5 km/h</span></div><div class="mini"><b>Risk</b><span>High dust trap</span></div></div></div><div class="brief glass"><div class="label">Product positioning</div><h3>Premium climate-tech command center.</h3><p>Made for hackathon demo: explainable AQI predictions, hotspot ranking, safer route comparison, and citizen pollution signals.</p><div class="tags"><span class="tag">Dashboard</span><span class="tag">Heatmap</span><span class="tag">Route AQI</span><span class="tag">AI Assistant</span></div></div></aside></div><div class="stats"><div class="stat glass"><strong>48</strong><span>grid predictions</span></div><div class="stat glass"><strong>91%</strong><span>confidence score</span></div><div class="stat glass"><strong>06</strong><span>hotspots detected</span></div><div class="stat glass"><strong>2.4km</strong><span>cleaner route found</span></div></div></section>
+<section class="page" id="page-analytics"><div class="page-head"><div><div class="kicker">Advanced dashboard</div><h2>Sweep-to-spike <em>analytics.</em></h2></div><p>A more serious analytics page inspired by operational city dashboards: trend curves, ward scores, wind conditions, compliance, evidence, live spikes, and AI recommendations.</p></div><div class="analytics-grid"><div class="panel glass wide"><h3>Live KPI Snapshot</h3><div class="kpis"><div class="kpi"><small>Predicted AQI</small><b>178</b><em>+14 today</em></div><div class="kpi"><small>PM2.5 Spike Lag</small><b>42s</b><em>detected</em></div><div class="kpi"><small>Evidence Reports</small><b>07</b><em>+12%</em></div><div class="kpi"><small>Confidence</small><b>91%</b><em>stable</em></div></div></div><div class="panel glass line-card"><h3>PM2.5 Spike Timeline — Today</h3><div class="chart-legend"><span><i class="legend-dot" style="background:var(--bad)"></i>W14 Al-Farabi</span><span><i class="legend-dot" style="background:var(--rust2)"></i>W7 University Road</span><span><i class="legend-dot" style="background:var(--good)"></i>W3 Park Belt</span><span>Safe limit 60 µg/m³</span></div><svg class="svg-chart" viewBox="0 0 1000 280" preserveAspectRatio="none"><defs><linearGradient id="redArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff6d6d" stop-opacity=".26"/><stop offset="1" stop-color="#ff6d6d" stop-opacity="0"/></linearGradient></defs><line class="axis" x1="40" y1="40" x2="980" y2="40"/><line class="axis" x1="40" y1="95" x2="980" y2="95"/><line class="axis" x1="40" y1="150" x2="980" y2="150"/><line class="axis" x1="40" y1="205" x2="980" y2="205"/><line class="safe-line" x1="40" y1="218" x2="980" y2="218"/><path class="area-red" d="M40,230 C140,228 220,220 280,120 C340,10 430,52 510,80 C620,118 710,158 820,186 C900,204 950,210 980,212 L980,250 L40,250 Z"/><path class="line-red" d="M40,230 C140,228 220,220 280,120 C340,10 430,52 510,80 C620,118 710,158 820,186 C900,204 950,210 980,212"/><path class="line-orange" d="M40,225 C130,80 220,92 320,112 C450,140 610,166 730,190 C850,205 930,210 980,211"/><path class="line-green" d="M40,232 C180,228 300,214 440,220 C580,225 720,230 980,232"/></svg></div><div class="panel glass"><h3>Ward Pollution Scores</h3><div class="score-list"><div class="score-row"><small>1</small><b>W14</b><div class="score-bar"><div class="score-fill" style="--w:98%"></div></div></div><div class="score-row"><small>2</small><b>W18</b><div class="score-bar"><div class="score-fill" style="--w:86%"></div></div></div><div class="score-row"><small>3</small><b>W7</b><div class="score-bar"><div class="score-fill" style="--w:78%"></div></div></div><div class="score-row"><small>4</small><b>W12</b><div class="score-bar"><div class="score-fill" style="--w:63%"></div></div></div><div class="score-row"><small>5</small><b>W3</b><div class="score-bar"><div class="score-fill" style="--w:28%;background:var(--good)"></div></div></div></div></div><div class="panel glass"><h3>Wind & Conditions</h3><div class="weather-grid"><div class="weather-box"><b>32°</b><small>Temperature</small></div><div class="weather-box"><b>14</b><small>Wind km/h</small></div><div class="weather-box"><b>NW</b><small>Wind Dir</small></div><div class="weather-box"><b>38%</b><small>Humidity</small></div></div></div><div class="panel glass"><h3>Sweeping Compliance</h3><div class="gauge-row"><div><div class="gauge" style="--p:25%"><b>25%</b></div><p class="muted mono" style="text-align:center;margin-top:10px;font-size:11px">Wet sweep usage</p></div></div></div><div class="panel glass"><h3>AQI vs Sweeping Correlation</h3><div class="gauge-row"><div><div class="gauge" style="--p:89%;background:conic-gradient(var(--bad) var(--p), rgba(255,255,255,.08) 0)"><b>89%</b></div><p class="muted mono" style="text-align:center;margin-top:10px;font-size:11px">Dry spike rate</p></div><div><div class="gauge" style="--p:8%;background:conic-gradient(var(--good) var(--p), rgba(255,255,255,.08) 0)"><b>8%</b></div><p class="muted mono" style="text-align:center;margin-top:10px;font-size:11px">Wet spike rate</p></div></div></div><div class="panel glass"><h3>AI Intelligence</h3><p class="ai-insight"><b>Correlation engine running:</b> dry sweeping in W14 has strong association with short PM2.5 bursts. Wind direction carries the spike 2.3 km toward the residential belt.</p><div class="rec-tabs"><button class="rec-tab active">Municipal</button><button class="rec-tab">Media</button><button class="rec-tab">Citizens</button></div><div class="recommendation"><span class="priority">Immediate</span><div><b>Ban dry sweeping in W14 corridor</b><br><span class="muted">PM2.5 repeatedly hitting unsafe threshold. Evidence report attached.</span></div><span class="chip">Pending</span></div><div class="recommendation"><span class="priority">Within 1hr</span><div><b>Shift sweep time from 5:45 AM to 8:00 AM</b><br><span class="muted">Early wind carries dust into adjacent blocks.</span></div><span class="chip">W7</span></div></div><div class="panel glass forecast-card"><h3>AQI Forecast</h3><div class="forecast-list" id="forecastList"><div class="forecast-row"><div><b>Next 1 hour</b><small>Wind remains low near university corridor</small></div><strong id="f1">184</strong></div><div class="forecast-row"><div><b>Next 6 hours</b><small>Evening traffic peak may increase PM2.5</small></div><strong id="f6">201</strong></div><div class="forecast-row"><div><b>Tomorrow morning</b><small>Better dispersion expected after wind shift</small></div><strong id="f24">142</strong></div></div><div class="forecast-actions"><button onclick="refreshForecast()">Refresh forecast</button><button onclick="toggleChat(true,'Explain the AQI forecast')">Ask AI about forecast</button></div></div><div class="panel glass"><h3>Live Spike Events — Last 4 Hours</h3><div class="event-list"><div class="event"><time>05:30</time><div class="mini-bar"><i style="--w:92%"></i></div><b>165</b></div><div class="event"><time>05:45</time><div class="mini-bar"><i style="--w:82%"></i></div><b>198</b></div><div class="event"><time>06:00</time><div class="mini-bar"><i style="--w:64%"></i></div><b>142</b></div><div class="event"><time>06:15</time><div class="mini-bar"><i style="--w:31%;background:var(--good)"></i></div><b>45</b></div><div class="event"><time>06:30</time><div class="mini-bar"><i style="--w:75%"></i></div><b>176</b></div></div></div></div></section>
+<section class="page" id="page-map"><div class="page-head"><div><div class="kicker">Interactive live map</div><h2>Almaty <em>pollution heatmap.</em></h2></div><p>Real-world Leaflet/OpenStreetMap map centered on Almaty, Kazakhstan. The colored circles are backend-driven AQI prediction zones for the hackathon demo.</p></div><div class="map-shell glass"><div id="live-map"></div><div class="map-status glass"><i class="dot"></i> Live map layer • Almaty</div><button class="btn ghost" style="position:absolute;top:18px;right:18px;z-index:500" onclick="document.getElementById('live-map').requestFullscreen()">Fullscreen</button><div class="map-panel glass"><div class="label">Selected zone</div><h3>AQI 186</h3><p class="ai-insight">High-risk zone near the university corridor. Low wind and road dust signals suggest pollutants may be trapped locally.</p><button class="btn primary" onclick="toggleChat(true,'Explain AQI 186 near University District')">Ask AI</button></div><div class="legend glass"><h3 style="margin-bottom:10px">Legend</h3><div class="legend-row"><span><i class="sw good"></i>Good</span><b>0–50</b></div><div class="legend-row"><span><i class="sw mod"></i>Moderate</span><b>51–150</b></div><div class="legend-row"><span><i class="sw bad"></i>Unhealthy</span><b>151+</b></div></div></div></section>
+<section class="page" id="page-routes"><div class="page-head"><div><div class="kicker">Route intelligence</div><h2>Choose cleaner <em>routes.</em></h2></div><p>Route page compares shortest route vs low-pollution route using mocked AQI exposure scores.</p></div><div class="route-layout"><div class="panel glass"><h3>Route Input</h3><div class="form"><input class="field" value="Kazakhstan University Campus"/><input class="field" value="Central Park Almaty"/><button class="btn primary">Compare routes</button></div></div><div class="grid-2"><div class="route-card glass"><h4>Route A — Shortest</h4><p>2.8 km • 9 min • AQI risk high near traffic junction.</p><div class="route-line"></div><span class="badge">AQI exposure 194</span></div><div class="route-card glass"><h4>Route B — Cleaner</h4><p>3.4 km • 13 min • lower dust exposure and better wind corridor.</p><div class="route-line safe"></div><span class="badge" style="border-color:rgba(112,226,160,.35);color:#d7ffe3;background:rgba(112,226,160,.10)">AQI exposure 126 • recommended</span></div></div></div></section>
+<section class="page" id="page-reports"><div class="page-head"><div><div class="kicker">Evidence & recommendations</div><h2>Reports that become <em>action.</em></h2></div><p>Citizen signals, auto evidence reports and policy simulations help teams understand what is happening and what action should be taken next.</p></div><div class="report-hero"><div class="evidence-tile glass"><div class="evidence-icon">▤</div><div><h4>Weekly Auto Evidence Report — Week 22</h4><p>Ward-wise pollution scores, spike timeline, route exposure and compliance ranking generated for city teams.</p></div><button class="btn primary" onclick="toggleChat(true,'Summarize weekly evidence report')">Summarize</button></div><div class="evidence-tile glass"><div class="evidence-icon">▧</div><div><h4>Dust Loop Visualization — Almaty Corridor</h4><p>Animated proof showing dust movement from low-wind zones toward campus and residential areas.</p></div><button class="btn ghost" onclick="showPage('map')">View map</button></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"><button class="btn ghost" onclick="showToast('✓ PDF export started')">Export PDF</button><button class="btn ghost" onclick="showToast('✓ CSV export started')">Export CSV</button></div><div class="report-tabs"><button class="report-tab active" data-report="municipal">🏛 Municipal</button><button class="report-tab" data-report="media">▣ Media / NGO</button><button class="report-tab" data-report="citizens">🧑‍🤝‍🧑 Citizens</button></div><div class="report-actions" id="reportActions"><div class="report-action"><span class="priority">Immediate</span><div><b>Reduce roadside dust near Al-Farabi Avenue</b><small>PM2.5 repeatedly crosses unsafe levels during low-wind periods. Evidence report attached.</small></div><span class="report-zone">Zone A</span><span class="report-status">Pending</span></div><div class="report-action"><span class="priority">Within 1hr</span><div><b>Shift high-dust activity away from morning peak</b><small>Early morning wind carries dust into nearby campus and residential blocks.</small></div><span class="report-zone">Campus</span><span class="report-status">Pending</span></div><div class="report-action"><span class="priority">Monitor</span><div><b>Extend monitoring to internal lanes</b><small>Main corridors are visible, but side streets still rely on community reports.</small></div><span class="report-zone">City-wide</span><span class="report-status">Open</span></div></div><div class="report-grid"><div class="report-card glass"><h4>Construction Dust</h4><p>Al-Farabi Avenue — heavy dust observed near roadside construction.</p><span class="badge">High severity</span></div><div class="report-card glass"><h4>Traffic Smoke</h4><p>Bus stand junction — smoke and idling vehicles during evening peak.</p><span class="badge">Medium severity</span></div><div class="report-card glass"><h4>Campus Zone Alert</h4><p>Outdoor activity risk for students due to AQI above 170.</p><span class="badge">Health advisory</span></div></div><div class="report-sim glass"><div class="kicker">Dust scenario simulator</div><h3>Model policy change impact.</h3><p class="muted">Frontend demo simulator showing how reports could become decision intelligence.</p><div class="sim-line">What if high-dust activity is reduced for <input id="simDays" value="30" type="number"> days?</div><div class="sim-line">Current average PM2.5 spike: <input id="simSpike" value="180" type="number"> µg/m³</div><button class="btn primary" onclick="runScenario()">Run scenario</button><div class="sim-result" id="simResult">Estimated impact: PM2.5 spikes may reduce by <b id="simDrop">32%</b>, improving AQI exposure around campus and nearby residential blocks.</div><div class="report-metrics"><div class="report-metric"><b>42s</b><small>avg spike lag</small></div><div class="report-metric"><b>07</b><small>evidence reports</small></div><div class="report-metric"><b>156</b><small>data points</small></div><div class="report-metric"><b>89%</b><small>dry-spike link</small></div></div></div></section>
+</main>
+<nav class="mobilebar glass"><button class="navtab active" data-page="home">Home</button><button class="navtab" data-page="analytics">Analytics</button><button class="navtab" data-page="map">Map</button><button class="navtab" data-page="routes">Routes</button><button class="navtab" data-page="reports">Reports</button><button class="theme-toggle" onclick="toggleTheme()">Theme</button></nav>
+</div>
+<button class="chat-launch" onclick="toggleChat(true)">◐</button>
+<aside class="chatbox glass" id="chatbox"><div class="chat-head"><div><h3>DustTrace AI</h3><span>Frontend assistant demo</span></div><button class="chat-close" onclick="toggleChat(false)">×</button></div><div class="chat-messages" id="chatMessages"><div class="msg bot">Hi, I’m DustTrace AI. Ask me about the project, dataset, model, API, heatmap, routes, or the Almaty demo.</div></div><div class="quick"><button onclick="askQuick('What is DustTrace?')">What is DustTrace?</button><button onclick="askQuick('Explain the architecture')">Architecture</button><button onclick="askQuick('How does heatmap work?')">Heatmap</button><button onclick="askQuick('What is the AI part?')">AI part</button></div><div class="chat-input"><input id="chatInput" placeholder="Ask about DustTrace..." onkeydown="if(event.key==='Enter')sendChat()"/><button onclick="sendChat()">Send</button></div></aside>
+<script>
+let dustTraceMap;
+let dustTraceTileLayer;
+const zones=[
+  {name:'Al-Farabi Avenue',lat:43.229,lng:76.918,aqi:214,color:'#ff6d6d',r:1150,reason:'Traffic + road dust'},
+  {name:'University District',lat:43.225,lng:76.905,aqi:186,color:'#ffad68',r:980,reason:'Low wind corridor'},
+  {name:'Central Park Almaty',lat:43.260,lng:76.955,aqi:94,color:'#70e2a0',r:900,reason:'Open green zone'},
+  {name:'Dostyk Avenue',lat:43.242,lng:76.958,aqi:156,color:'#f2ce63',r:850,reason:'Moderate congestion'},
+  {name:'KazNU Campus Area',lat:43.226,lng:76.921,aqi:172,color:'#ffad68',r:720,reason:'Student commute peak'}
+];
+
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light');
+  document.querySelectorAll('#themeToggle').forEach(b=>b.textContent=isLight?'☾ Dark':'☀ Light');
+  localStorage.setItem('dusttrace-theme',isLight?'light':'dark');
+  if(dustTraceMap && dustTraceTileLayer){
+    dustTraceMap.removeLayer(dustTraceTileLayer);
+    dustTraceTileLayer=L.tileLayer(isLight?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap contributors &copy; CARTO',maxZoom:19}).addTo(dustTraceMap);
+    dustTraceTileLayer.bringToBack();
+  }
+}
+(function(){
+  if(localStorage.getItem('dusttrace-theme')==='light'){document.body.classList.add('light');}
+  window.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('#themeToggle').forEach(b=>b.textContent=document.body.classList.contains('light')?'☾ Dark':'☀ Light')});
+})();
+
+function initDustTraceMap(){
+  if(dustTraceMap || !window.L) return;
+  dustTraceMap=L.map('live-map',{zoomControl:true,scrollWheelZoom:true}).setView([43.2389,76.8897],12);
+  dustTraceTileLayer=L.tileLayer(document.body.classList.contains('light')?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap contributors &copy; CARTO',maxZoom:19}).addTo(dustTraceMap);
+  zones.forEach(z=>{L.circle([z.lat,z.lng],{radius:z.r,color:z.color,weight:2,fillColor:z.color,fillOpacity:.28,opacity:.9}).addTo(dustTraceMap).bindPopup(`<b>${z.name}</b><br>AQI ${z.aqi}<br>${z.reason}`);L.circleMarker([z.lat,z.lng],{radius:7,color:'#fff',weight:2,fillColor:z.color,fillOpacity:1}).addTo(dustTraceMap);});
+  setTimeout(()=>dustTraceMap.invalidateSize(),250);
+}
+function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.querySelectorAll('.navtab').forEach(b=>b.classList.toggle('active',b.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(name==='map')setTimeout(()=>{initDustTraceMap();setTimeout(loadLiveHeatmap,600)},120);}document.querySelectorAll('.navtab').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+function toggleChat(open,prompt){const box=document.getElementById('chatbox');box.classList.toggle('open',open);if(open&&prompt){setTimeout(()=>{document.getElementById('chatInput').value=prompt;sendChat();},120)}}
+function addMsg(text,type='bot'){const c=document.getElementById('chatMessages');const d=document.createElement('div');d.className='msg '+type;d.innerHTML=text;c.appendChild(d);c.scrollTop=c.scrollHeight;}
+function askQuick(q){document.getElementById('chatInput').value=q;sendChat();}
+function botReply(q){q=q.toLowerCase();
+ if(q.includes('architecture'))return 'DustTrace architecture: <b>Frontend map/dashboard</b> → <b>Backend API</b> → AQI + weather data → prediction logic/ML model → heatmap + route intelligence + AI explanation. In this file, backend is mocked in frontend for demo.';
+ if(q.includes('heatmap'))return 'Heatmap works by generating many grid points across a city. Each point gets a predicted AQI score. The frontend then draws colored zones: green for safe, yellow/orange for moderate, red for unhealthy.';
+ if(q.includes('dataset')||q.includes('model'))return 'Dataset version: collect AQI, PM2.5, PM10, temperature, humidity, wind speed, wind direction, traffic score, latitude/longitude and time. Then train Random Forest/XGBoost to predict AQI.';
+ if(q.includes('api'))return 'API MVP version: use AQI API + weather API + map API. Backend applies formula/rules first, then later replaces it with trained ML model. This is fastest for hackathon.';
+ if(q.includes('ai'))return 'AI part: AQI prediction + explainable insights. The assistant explains why AQI is high, what conditions caused spikes, and what citizens/municipality should do.';
+ if(q.includes('route'))return 'Route intelligence compares shortest route vs cleaner route by calculating AQI exposure along route segments. The lowest exposure route is recommended.';
+ if(q.includes('almaty')||q.includes('kazakhstan'))return 'This demo is centered on Almaty, Kazakhstan, with mock AQI zones around University District, KazNU campus, Al-Farabi Avenue and Central Park.';
+ return 'DustTrace is a hyperlocal pollution intelligence platform. It predicts AQI where sensors do not exist, shows heatmaps, explains pollution reasons, compares cleaner routes, and collects community reports.';
+}
+
+function refreshForecast(){ showToast('✓ AQI forecast updated');
+  const values=[
+    [178,184,191,188],
+    [196,201,207,199],
+    [136,142,149,145]
+  ];
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  document.getElementById('f1').textContent=pick(values[0]);
+  document.getElementById('f6').textContent=pick(values[1]);
+  document.getElementById('f24').textContent=pick(values[2]);
+}
+
+
+const reportData={
+ municipal:[['Immediate','Reduce roadside dust near Al-Farabi Avenue','PM2.5 repeatedly crosses unsafe levels during low-wind periods. Evidence report attached.','Zone A','Pending'],['Within 1hr','Shift high-dust activity away from morning peak','Early morning wind carries dust into nearby campus and residential blocks.','Campus','Pending'],['Monitor','Extend monitoring to internal lanes','Main corridors are visible, but side streets still rely on community reports.','City-wide','Open']],
+ media:[['Immediate','Publish Almaty morning AQI advisory','Explain why low wind and dust raise exposure risk during commute hours.','Public','Ready'],['Monitor','Track 3-day hotspot trend','Use visual charts from analytics page for public awareness.','Media','Open']],
+ citizens:[['Immediate','Avoid outdoor activity near high-AQI corridor','Peak PM2.5 risk is expected before 8 AM during low-wind days.','Zone A','Advisory'],['Within 1hr','Close windows near traffic-heavy roads','Dust may travel toward residential belts during morning wind shift.','Campus','Advisory'],['Monitor','Report smoke, dust or construction emissions','Citizen reports improve future model accuracy and hotspot verification.','All zones','Open']]
+};
+document.querySelectorAll('.report-tab').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.report-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const rows=reportData[btn.dataset.report]||reportData.municipal;document.getElementById('reportActions').innerHTML=rows.map(r=>`<div class="report-action"><span class="priority">${r[0]}</span><div><b>${r[1]}</b><small>${r[2]}</small></div><span class="report-zone">${r[3]}</span><span class="report-status">${r[4]}</span></div>`).join('');}));
+function runScenario(){const days=Number(document.getElementById('simDays').value||30);const spike=Number(document.getElementById('simSpike').value||180);const drop=Math.min(58,Math.max(18,Math.round(days*.65+Math.max(0,spike-120)*.18)));document.getElementById('simDrop').textContent=drop+'%';document.getElementById('simResult').classList.add('show');}
+
+function sendChat(){const inp=document.getElementById('chatInput');const q=inp.value.trim();if(!q)return;addMsg(q,'user');inp.value='';setTimeout(()=>addMsg(botReply(q),'bot'),350)}
+</script>
+
+<div id="toastContainer" style="position:fixed;right:20px;bottom:20px;z-index:9999;display:flex;flex-direction:column;gap:10px"></div>
+<script>
+function showToast(msg){
+ const t=document.createElement('div');
+ t.innerHTML=msg;
+ t.style.cssText='padding:12px 16px;border-radius:14px;background:rgba(20,20,20,.92);color:#fff;border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(10px)';
+ document.getElementById('toastContainer').appendChild(t);
+ setTimeout(()=>t.remove(),3000);
+}
+document.addEventListener('DOMContentLoaded',()=>{
+ document.querySelectorAll('.btn.primary').forEach(b=>{
+   b.addEventListener('click',()=>{ if(b.textContent.includes('Download')||b.textContent.includes('Export')) showToast('✓ Report generated');});
+ });
+});
+</script>
+
+<div id="sideMenu" style="position:fixed;top:0;right:-320px;width:300px;height:100vh;z-index:9998;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);padding:24px;transition:.3s;border-left:1px solid rgba(255,255,255,.12)">
+<h3 style="margin-bottom:20px;color:white">DustTrace Menu</h3>
+<div style="display:flex;flex-direction:column;gap:10px">
+<button class="btn ghost" onclick="showPage('home');toggleMenu()">Home</button>
+<button class="btn ghost" onclick="showPage('analytics');toggleMenu()">Analytics</button>
+<button class="btn ghost" onclick="showPage('map');toggleMenu()">Map</button>
+<button class="btn ghost" onclick="showPage('routes');toggleMenu()">Routes</button>
+<button class="btn ghost" onclick="showPage('reports');toggleMenu()">Reports</button>
+<button class="btn primary" onclick="toggleTheme()">Theme Toggle</button>
+<button class="btn ghost" onclick="loadLiveDustTraceData();loadLiveForecast();loadLiveHeatmap();showToast('✓ Live backend sync started')">Sync Live Data</button>
+</div>
+</div>
+<script>
+function toggleMenu(){
+ const m=document.getElementById('sideMenu');
+ m.style.right=(m.style.right==='0px')?'-320px':'0px';
+}
+</script>
+
+
+<script>
+async function loadLiveDustTraceData(){
+  try{
+    const res = await fetch('/api/aqi?lat=43.2389&lng=76.8897', { cache: 'no-store' });
+    const data = await res.json();
+    if(!data || !data.aqi) return;
+    const aqi = Math.round(data.aqi);
+    const pm25 = data.pm25 ? Math.round(data.pm25) : 92;
+    const pm10 = data.pm10 ? Math.round(data.pm10) : 138;
+    const temp = data.temperature != null ? Math.round(data.temperature) : 32;
+    const wind = data.windSpeed != null ? Math.round(data.windSpeed) : 5;
+    const humidity = data.humidity != null ? Math.round(data.humidity) : 38;
+    const risk = data.risk || (aqi>200?'Very Unhealthy':aqi>150?'Unhealthy':aqi>100?'Moderate':'Good');
+
+    document.querySelectorAll('.aqi-big').forEach(el => el.textContent = aqi);
+    document.querySelectorAll('.risk-pill').forEach(el => el.textContent = risk);
+    const minis = document.querySelectorAll('.aqi-row .mini');
+    if(minis[0]) minis[0].querySelector('span').textContent = pm25 + ' µg/m³';
+    if(minis[1]) minis[1].querySelector('span').textContent = (wind <= 7 ? 'Low • ' : 'Live • ') + wind + ' km/h';
+    if(minis[2]) minis[2].querySelector('span').textContent = data.source === 'open-meteo-live' ? 'Live API signal' : 'Demo fallback';
+
+    const kpi = document.querySelectorAll('.kpi b');
+    if(kpi[0]) kpi[0].textContent = aqi;
+    const weatherBoxes = document.querySelectorAll('.weather-box b');
+    if(weatherBoxes[0]) weatherBoxes[0].textContent = temp + '°';
+    if(weatherBoxes[1]) weatherBoxes[1].textContent = wind;
+    if(weatherBoxes[3]) weatherBoxes[3].textContent = humidity + '%';
+
+    const selected = document.querySelector('.map-panel h3');
+    if(selected) selected.textContent = 'AQI ' + aqi;
+    const mapInsight = document.querySelector('.map-panel .ai-insight');
+    if(mapInsight) mapInsight.textContent = data.insight || 'Live air quality signal received from backend. Hotspot circles are adjusted using AQI and weather risk.';
+    if(window.showToast) showToast('✓ Live AQI data loaded');
+  } catch(e){
+    if(window.showToast) showToast('⚠ Using fallback demo data');
+  }
+}
+async function loadLiveForecast(){
+  try{
+    const res = await fetch('/api/forecast?lat=43.2389&lng=76.8897', { cache: 'no-store' });
+    const data = await res.json();
+    if(data?.forecast){
+      document.getElementById('f1').textContent=data.forecast.oneHour;
+      document.getElementById('f6').textContent=data.forecast.sixHours;
+      document.getElementById('f24').textContent=data.forecast.tomorrowMorning;
+    }
+  }catch(e){}
+}
+const originalSendChat = window.sendChat;
+window.sendChat = async function(){
+  const inp=document.getElementById('chatInput');
+  const q=inp.value.trim();
+  if(!q)return;
+  addMsg(q,'user');
+  inp.value='';
+  try{
+    const res = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
+    const data = await res.json();
+    addMsg(data.reply || botReply(q),'bot');
+  }catch(e){
+    addMsg(botReply(q),'bot');
+  }
+}
+const oldRefreshForecast = window.refreshForecast;
+window.refreshForecast = async function(){
+  await loadLiveForecast();
+  if(window.showToast) showToast('✓ Forecast updated from backend');
+}
+
+async function loadLiveHeatmap(){
+  try{
+    if(!dustTraceMap) return;
+    const res = await fetch('/api/heatmap', { cache:'no-store' });
+    const data = await res.json();
+    window.liveHeatLayers = window.liveHeatLayers || [];
+    window.liveHeatLayers.forEach(l => dustTraceMap.removeLayer(l));
+    window.liveHeatLayers = [];
+    const colorFor = (aqi)=> aqi > 180 ? '#ff6d6d' : aqi > 120 ? '#ffad68' : aqi > 70 ? '#f2ce63' : '#70e2a0';
+    (data.points || []).forEach(p=>{
+      const color = colorFor(p.aqi);
+      const layer = L.circle([p.lat,p.lng],{radius:p.radius || 650,color,weight:2,fillColor:color,fillOpacity:.22,opacity:.85})
+        .addTo(dustTraceMap)
+        .bindPopup(`<b>${p.name || 'Live AQI zone'}</b><br>Live AQI estimate: ${p.aqi}<br>${p.reason || 'Backend generated heat zone'}`);
+      window.liveHeatLayers.push(layer);
+    });
+  }catch(e){ if(window.showToast) showToast('⚠ Heatmap API fallback active'); }
+}
+
+window.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>{loadLiveDustTraceData();loadLiveForecast();},500)});
+</script>
+
+</body>
+
+</html>
